@@ -1,0 +1,92 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "Learner user profile with nickname and game records",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "maxLength": 128
+        },
+        "nickname": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 30
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "bestScore": {
+          "type": "number"
+        },
+        "clearedStages": {
+          "type": "number"
+        }
+      },
+      "required": ["uid", "nickname", "createdAt"]
+    },
+    "ScoreRecord": {
+      "title": "ScoreRecord",
+      "description": "Public hall of fame ranking record",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "maxLength": 128
+        },
+        "nickname": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 30
+        },
+        "score": {
+          "type": "number"
+        },
+        "mode": {
+          "type": "string",
+          "enum": ["NORMAL", "HARD"]
+        },
+        "stageReached": {
+          "type": "number"
+        },
+        "accuracy": {
+          "type": "number"
+        },
+        "clearTimeSeconds": {
+          "type": "number"
+        },
+        "maxCombo": {
+          "type": "number"
+        },
+        "title": {
+          "type": "string",
+          "maxLength": 100
+        },
+        "isClear": {
+          "type": "boolean"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["nickname", "score", "mode", "stageReached", "accuracy", "clearTimeSeconds", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": {
+        "$ref": "#/entities/User"
+      },
+      "description": "Stores registered learner user profiles"
+    },
+    "/scores/{scoreId}": {
+      "schema": {
+        "$ref": "#/entities/ScoreRecord"
+      },
+      "description": "Public hall of fame records for leaderboard display"
+    }
+  }
+}

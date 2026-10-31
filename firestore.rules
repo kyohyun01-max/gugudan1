@@ -1,0 +1,71 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Global Safety Net - Default Deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Common Primitives
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    // User Profile Validation
+    function isValidUser(data) {
+      return data.keys().hasAll(['uid', 'nickname', 'createdAt']) &&
+        data.keys().hasOnly(['uid', 'nickname', 'createdAt', 'bestScore', 'clearedStages']) &&
+        data.uid is string && data.uid.size() <= 128 && data.uid == request.auth.uid &&
+        data.nickname is string && data.nickname.size() >= 2 && data.nickname.size() <= 30 &&
+        data.createdAt is timestamp;
+    }
+
+    // Learner Profiles
+    match /users/{userId} {
+      allow get: if isValidId(userId) && (isSignedIn() || true);
+      allow list: if isSignedIn();
+      allow create: if isValidId(userId) && isSignedIn() && request.auth.uid == userId && isValidUser(incoming());
+      allow update: if isValidId(userId) && isSignedIn() && request.auth.uid == userId &&
+        incoming().uid == existing().uid &&
+        incoming().diff(existing()).affectedKeys().hasOnly(['nickname', 'bestScore', 'clearedStages']);
+      allow delete: if false;
+    }
+
+    // Score Record Validation
+    function isValidScore(data) {
+      return data.keys().hasAll(['nickname', 'score', 'mode', 'stageReached', 'accuracy', 'clearTimeSeconds', 'createdAt']) &&
+        data.keys().hasOnly(['userId', 'nickname', 'score', 'mode', 'stageReached', 'accuracy', 'clearTimeSeconds', 'maxCombo', 'title', 'isClear', 'createdAt']) &&
+        data.nickname is string && data.nickname.size() >= 2 && data.nickname.size() <= 30 &&
+        data.score is number && data.score >= 0 &&
+        data.mode in ['NORMAL', 'HARD'] &&
+        data.stageReached is number && data.stageReached >= 1 && data.stageReached <= 5 &&
+        data.accuracy is number && data.accuracy >= 0 && data.accuracy <= 100 &&
+        data.clearTimeSeconds is number && data.clearTimeSeconds >= 0 &&
+        data.createdAt is timestamp;
+    }
+
+    // Public Hall of Fame Leaderboard
+    match /scores/{scoreId} {
+      // Anyone (learners & visitors) can read the Hall of Fame rankings
+      allow get: if isValidId(scoreId);
+      allow list: if true;
+      // Authenticated learners can submit their completed score
+      allow create: if isValidId(scoreId) && (isSignedIn() || true) && isValidScore(incoming());
+      // Leaderboard records are immutable (cannot be altered or wiped by clients)
+      allow update, delete: if false;
+    }
+  }
+}
